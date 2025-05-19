@@ -33,18 +33,18 @@ const HomeScreen = ({ navigation, setUser }) => {
 
     // Define gradeData using translations
     const gradeData = [
-        { id: 1, grade: 1, label: t('math_grade', { grade: 1 }), image: 'https://img.freepik.com/free-vector/math-class-illustration_23-2148898572.jpg', category: t('elementary') },
-        { id: 2, grade: 2, label: t('math_grade', { grade: 2 }), image: 'https://img.freepik.com/free-vector/hand-drawn-mathematics-background_23-2148156326.jpg', category: t('elementary') },
-        { id: 3, grade: 3, label: t('math_grade', { grade: 3 }), image: 'https://img.freepik.com/free-vector/kids-learning-math_23-2148893402.jpg', category: t('elementary') },
-        { id: 4, grade: 4, label: t('math_grade', { grade: 4 }), image: 'https://img.freepik.com/free-vector/flat-mathematics-background_23-2148156327.jpg', category: t('elementary') },
-        { id: 5, grade: 5, label: t('math_grade', { grade: 5 }), image: 'https://img.freepik.com/free-photo/schoolboy-solving-math-problem_23-2148893401.jpg', category: t('elementary') },
-        { id: 6, grade: 6, label: t('math_grade', { grade: 6 }), image: 'https://img.freepik.com/free-vector/abstract-mathematics-background_23-2148156328.jpg', category: t('middle_school') },
-        { id: 7, grade: 7, label: t('math_grade', { grade: 7 }), image: 'https://img.freepik.com/free-vector/brainstorming-concept-illustration_114360-734.jpg', category: t('middle_school') },
-        { id: 8, grade: 8, label: t('math_grade', { grade: 8 }), image: 'https://img.freepik.com/free-vector/hand-drawn-mathematics-background_23-2148156329.jpg', category: t('middle_school') },
-        { id: 9, grade: 9, label: t('math_grade', { grade: 9 }), image: 'https://img.freepik.com/free-vector/hand-drawn-mathematics-background_23-2148156330.jpg', category: t('middle_school') },
-        { id: 10, grade: 10, label: t('math_grade', { grade: 10 }), image: 'https://img.freepik.com/free-vector/hand-drawn-mathematics-background_23-2148156331.jpg', category: t('high_school') },
-        { id: 11, grade: 11, label: t('math_grade', { grade: 11 }), image: 'https://img.freepik.com/free-vector/hand-drawn-mathematics-background_23-2148156332.jpg', category: t('high_school') },
-        { id: 12, grade: 12, label: t('math_grade', { grade: 12 }), image: 'https://img.freepik.com/free-vector/hand-drawn-mathematics-background_23-2148156333.jpg', category: t('high_school') },
+        { id: 1, grade: 1, label: t('math_grade', { grade: 1 }), image: require('./assets/26-ch-3-nui.webp'), category: t('elementary') },
+        { id: 2, grade: 2, label: t('math_grade', { grade: 2 }), image: require('./assets/The-Dancing-House-Fr.jpg'), category: t('elementary') },
+        { id: 3, grade: 3, label: t('math_grade', { grade: 3 }), image: require('./assets/lucid-dream-giac-mo-sang-suot-la-gi-5-cach-vao-1-800x450.jpg'), category: t('elementary') },
+        { id: 4, grade: 4, label: t('math_grade', { grade: 4 }), image: require('./assets/thanh-pho-mo-uoc-trong-100-nam-toi1455882501.webp'), category: t('elementary') },
+        { id: 5, grade: 5, label: t('math_grade', { grade: 5 }), image: require('./assets/y-tuong-kinh-doanh-la-kinh-doanh-gie1baa5c-mc6a1-7.jpg'), category: t('elementary') },
+        { id: 6, grade: 6, label: t('math_grade', { grade: 6 }), image: require('./assets/pngtree-sci-fi-world-cityscape-background-picture-image_2151048.jpg'), category: t('middle_school') },
+        { id: 7, grade: 7, label: t('math_grade', { grade: 7 }), image: require('./assets/Jules-Verne-anh1-1170x700.jpeg'), category: t('middle_school') },
+        { id: 8, grade: 8, label: t('math_grade', { grade: 8 }), image: require('./assets/justin-peters-a-21-years-old-german-artist-merges-reality-with-his-imagination-and-creates-fascinating-surreal-artworks-596f00974e9de880-15328872479941688653013.webp'), category: t('middle_school') },
+        { id: 9, grade: 9, label: t('math_grade', { grade: 9 }), image: require('./assets/the-gioi-quan-khoa-hoc-la-gi.jpg'), category: t('middle_school') },
+        { id: 10, grade: 10, label: t('math_grade', { grade: 10 }), image: require('./assets/images.jpg'), category: t('high_school') },
+        { id: 11, grade: 11, label: t('math_grade', { grade: 11 }), image: require('./assets/thien-nhien-la-gi_1801104859.webp'), category: t('high_school') },
+        { id: 12, grade: 12, label: t('math_grade', { grade: 12 }), image: require('./assets/pngtree-education-and-training-mathematics-subject-shading-png-image_3860588.jpg'), category: t('high_school') },
     ];
 
     useEffect(() => {
@@ -85,7 +85,7 @@ const HomeScreen = ({ navigation, setUser }) => {
             style={styles.gradeBox}
             onPress={() => navigation.navigate('FormulaList', { grade: item.grade })}
         >
-            <Image source={{ uri: item.image }} style={styles.gradeImage} />
+            <Image source={item.image} style={styles.gradeImage} />
             <View style={styles.gradeContent}>
                 <Text style={styles.gradeLabel}>{item.label}</Text>
                 <View style={styles.viewDetailsContainer}>
@@ -110,6 +110,16 @@ const HomeScreen = ({ navigation, setUser }) => {
                 />
             </View>
         );
+    };
+
+    // Add a function to ensure LaTeX has proper backslashes
+    const ensureLatexBackslashes = (latex) => {
+        return latex
+            .replace(/([^\\])frac/g, '$1\\frac')
+            .replace(/([^\\])times/g, '$1\\times')
+            // Add more replacements as needed
+            .replace(/^frac/g, '\\frac')
+            .replace(/^times/g, '\\times');
     };
 
     return (

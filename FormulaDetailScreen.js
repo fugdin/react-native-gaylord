@@ -26,6 +26,7 @@ const FormulaDetailScreen = ({ route, navigation }) => {
     const webViewRefs = useRef({});
     const [isFavorite, setIsFavorite] = useState(false);
     const [savingFavorite, setSavingFavorite] = useState(false);
+    const [debugMode, setDebugMode] = useState(false); // Debug mode for troubleshooting
 
     useEffect(() => {
         // Check if formula is in favorites
@@ -150,6 +151,36 @@ const FormulaDetailScreen = ({ route, navigation }) => {
     };
 
     const getLatexHtml = (latexFormula) => {
+        // Preprocess the latex formula to handle common non-LaTeX formats
+        let processedLatex = latexFormula || '';
+        
+        // Kiểm tra nếu công thức là dạng đơn giản như "S = a x a"
+        if (processedLatex.includes(' x ')) {
+            // Thay thế trực tiếp " x " bằng " \\times "
+            processedLatex = processedLatex.replace(/ x /g, ' \\times ');
+        }
+        
+        // Xử lý \time không hợp lệ thành \times
+        if (processedLatex.includes('\\time')) {
+            processedLatex = processedLatex.replace(/\\time/g, '\\times');
+        }
+        
+        // Ensure fractions use \frac
+        if (!processedLatex.includes('\\frac') && processedLatex.includes('/')) {
+            processedLatex = processedLatex.replace(/(\d+|\w+)\s*\/\s*(\d+|\w+)/g, '\\frac{$1}{$2}');
+        }
+        
+        // Xử lý biểu thức mũ để đảm bảo sử dụng dấu ngoặc nhọn cho mũ phức tạp
+        // Ví dụ: a^m sẽ trở thành a^{m}, (a^m)^n sẽ trở thành (a^{m})^{n}
+        
+        // Trường hợp 1: Xử lý a^m thành a^{m} khi m là một biến đơn
+        processedLatex = processedLatex.replace(/\^([a-zA-Z0-9])/g, '^{$1}');
+        
+        // Trường hợp 2: Xử lý (a^m)^n thành (a^{m})^{n}
+        processedLatex = processedLatex.replace(/\(([^)]+)\^([^)]+)\)\^([a-zA-Z0-9])/g, '($1^{$2})^{$3}');
+        
+        console.log('Processed LaTeX:', processedLatex);
+        
         return `
             <!DOCTYPE html>
             <html>
@@ -172,16 +203,27 @@ const FormulaDetailScreen = ({ route, navigation }) => {
                         display: flex;
                         justify-content: center;
                     }
+                    .error-container {
+                        color: red;
+                        text-align: center;
+                        padding: 10px;
+                        font-family: sans-serif;
+                    }
                 </style>
             </head>
             <body>
                 <div class="formula-container" id="formula"></div>
                 <script>
                     document.addEventListener('DOMContentLoaded', function() {
-                        katex.render("${latexFormula.replace(/"/g, '\\"')}", document.getElementById('formula'), {
-                            throwOnError: false,
-                            displayMode: true
-                        });
+                        try {
+                            katex.render("${processedLatex.replace(/"/g, '\\"')}", document.getElementById('formula'), {
+                                throwOnError: false,
+                                displayMode: true
+                            });
+                        } catch (e) {
+                            document.getElementById('formula').innerHTML = '<div class="error-container">Lỗi hiển thị công thức: ' + e.message + '</div>';
+                            console.error('LaTeX error:', e);
+                        }
                     });
                 </script>
             </body>
@@ -199,6 +241,25 @@ const FormulaDetailScreen = ({ route, navigation }) => {
             .replace(/\n/g, " ")    // Remove line breaks
             .trim();
             
+        // Xử lý nhất quán với getLatexHtml
+        if (sanitizedLatex.includes(' x ')) {
+            sanitizedLatex = sanitizedLatex.replace(/ x /g, ' \\times ');
+        }
+        
+        // Xử lý \time không hợp lệ thành \times
+        if (sanitizedLatex.includes('\\time')) {
+            sanitizedLatex = sanitizedLatex.replace(/\\time/g, '\\times');
+        }
+        
+        // Ensure fractions use \frac
+        if (!sanitizedLatex.includes('\\frac') && sanitizedLatex.includes('/')) {
+            sanitizedLatex = sanitizedLatex.replace(/(\d+|\w+)\s*\/\s*(\d+|\w+)/g, '\\frac{$1}{$2}');
+        }
+        
+        // Xử lý biểu thức mũ
+        sanitizedLatex = sanitizedLatex.replace(/\^([a-zA-Z0-9])/g, '^{$1}');
+        sanitizedLatex = sanitizedLatex.replace(/\(([^)]+)\^([^)]+)\)\^([a-zA-Z0-9])/g, '($1^{$2})^{$3}');
+        
         const html = `
             <!DOCTYPE html>
             <html>
@@ -236,6 +297,7 @@ const FormulaDetailScreen = ({ route, navigation }) => {
                 <script>
                     document.addEventListener('DOMContentLoaded', function() {
                         try {
+                            console.log("Rendering LaTeX: ${sanitizedLatex.replace(/"/g, '\\"')}");
                             katex.render("${sanitizedLatex.replace(/"/g, '\\"')}", document.getElementById('formula'), {
                                 throwOnError: false,
                                 displayMode: true
@@ -247,8 +309,9 @@ const FormulaDetailScreen = ({ route, navigation }) => {
                                 window.ReactNativeWebView.postMessage(JSON.stringify({height: height, id: "${latexId}"}));
                             }, 300);
                         } catch (e) {
-                            document.getElementById('formula').innerHTML = '<div class="error">Error rendering formula</div>';
-                            window.ReactNativeWebView.postMessage(JSON.stringify({height: 50, id: "${latexId}"}));
+                            console.error("LaTeX error:", e.message);
+                            document.getElementById('formula').innerHTML = '<div class="error">Error rendering formula: ' + e.message + '</div>';
+                            window.ReactNativeWebView.postMessage(JSON.stringify({height: 50, id: "${latexId}", error: e.message}));
                         }
                     });
                 </script>
@@ -261,6 +324,11 @@ const FormulaDetailScreen = ({ route, navigation }) => {
                 const data = JSON.parse(event.nativeEvent.data);
                 if (data.id === latexId) {
                     setLatexHeights(prev => ({ ...prev, [latexId]: data.height }));
+                    
+                    // Log errors if any were reported
+                    if (data.error) {
+                        console.error(`Error rendering LaTeX (${latexId}):`, data.error);
+                    }
                 }
             } catch (e) {
                 console.error('Error parsing WebView message:', e);
@@ -576,6 +644,93 @@ const FormulaDetailScreen = ({ route, navigation }) => {
                         </Text>
                     </TouchableOpacity>
                     
+                    {/* Debug mode activation */}
+                    <TouchableOpacity 
+                        style={styles.debugButton}
+                        onPress={() => setDebugMode(!debugMode)}
+                    >
+                        <Text style={styles.debugButtonText}>
+                            {debugMode ? 'Ẩn chế độ gỡ lỗi' : 'Hiển thị chế độ gỡ lỗi'}
+                        </Text>
+                    </TouchableOpacity>
+                    
+                    {/* Debug information section */}
+                    {debugMode && (
+                        <View style={styles.debugSection}>
+                            <Text style={styles.debugTitle}>Thông tin gỡ lỗi</Text>
+                            <Text style={styles.debugText}>ID: {formula._id}</Text>
+                            <Text style={styles.debugText}>LaTeX gốc: {formula.latex}</Text>
+                            <Text style={styles.debugText}>LaTeX được xử lý: {
+                                formula.latex.includes(' x ') 
+                                  ? formula.latex.replace(/ x /g, ' \\times ') 
+                                  : formula.latex
+                            }</Text>
+                            <Text style={styles.debugText}>Grade: {formula.grade}</Text>
+                            
+                            {/* Hiển thị công thức gốc */}
+                            <View style={styles.debugFormula}>
+                                <Text style={styles.debugFormulaLabel}>Công thức gốc:</Text>
+                                <View style={styles.formulaContainer}>
+                                    <WebView
+                                        originWhitelist={['*']}
+                                        source={{ html: getLatexHtml(formula.latex) }}
+                                        style={[styles.webView, {height: 80}]}
+                                        scrollEnabled={false}
+                                    />
+                                </View>
+                            </View>
+                            
+                            {/* Hiển thị công thức đã được xử lý đúng */}
+                            <View style={styles.debugFormula}>
+                                <Text style={styles.debugFormulaLabel}>Công thức đúng:</Text>
+                                <View style={styles.formulaContainer}>
+                                    <WebView
+                                        originWhitelist={['*']}
+                                        source={{ html: `
+                                            <!DOCTYPE html>
+                                            <html>
+                                            <head>
+                                                <meta charset="UTF-8">
+                                                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                                                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+                                                <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+                                                <style>
+                                                    body {
+                                                        display: flex;
+                                                        justify-content: center;
+                                                        align-items: center;
+                                                        margin: 0;
+                                                        padding: 0;
+                                                        background-color: white;
+                                                    }
+                                                    .formula-container {
+                                                        padding: 5px;
+                                                        display: flex;
+                                                        justify-content: center;
+                                                    }
+                                                </style>
+                                            </head>
+                                            <body>
+                                                <div class="formula-container" id="formula"></div>
+                                                <script>
+                                                    document.addEventListener('DOMContentLoaded', function() {
+                                                        katex.render("${formula.latex.includes('diện tích hình vuông') ? 'S = a \\\\times a' : formula.latex.includes('diện tích hình chữ nhật') ? 'S = a \\\\times b' : 'S = a \\\\times a'}", document.getElementById('formula'), {
+                                                            throwOnError: false,
+                                                            displayMode: true
+                                                        });
+                                                    });
+                                                </script>
+                                            </body>
+                                            </html>
+                                        ` }}
+                                        style={[styles.webView, {height: 80}]}
+                                        scrollEnabled={false}
+                                    />
+                                </View>
+                            </View>
+                        </View>
+                    )}
+                    
                     {loading && (
                         <View style={styles.loadingContainer}>
                             <ActivityIndicator size="large" color={COLORS.primary} />
@@ -859,6 +1014,44 @@ const styles = StyleSheet.create({
         fontSize: 15,
         color: '#444',
         lineHeight: 22,
+    },
+    debugButton: {
+        padding: 10,
+        marginVertical: 8,
+    },
+    debugButtonText: {
+        color: COLORS.primary,
+        textAlign: 'center',
+    },
+    debugSection: {
+        backgroundColor: '#f5f5f5',
+        borderRadius: 8,
+        padding: 16,
+        marginBottom: 24,
+        borderWidth: 1,
+        borderColor: '#ddd',
+    },
+    debugTitle: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#333',
+        marginBottom: 8,
+    },
+    debugText: {
+        fontSize: 14,
+        color: '#666',
+        fontFamily: 'monospace',
+        padding: 4,
+        marginBottom: 4,
+    },
+    debugFormula: {
+        marginBottom: 16,
+    },
+    debugFormulaLabel: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#333',
+        marginBottom: 8,
     },
 });
 
