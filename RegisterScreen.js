@@ -3,23 +3,27 @@ import { View, TextInput, Alert, StyleSheet, Text, TouchableOpacity, ImageBackgr
 import axios from 'axios';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/FontAwesome';
+import { useTranslation } from 'react-i18next';
 
 const RegisterScreen = () => {
+    const { t } = useTranslation();
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const navigation = useNavigation();
 
     const handleRegister = async () => {
         try {
             if (!username || !password || !email) {
-                Alert.alert('Lỗi', 'Vui lòng điền đầy đủ thông tin');
+                Alert.alert(t('error'), t('fill_all_fields'));
                 return;
             }
 
             if (password !== confirmPassword) {
-                Alert.alert('Lỗi', 'Mật khẩu không khớp');
+                Alert.alert(t('error'), t('passwords_not_match'));
                 return;
             }
 
@@ -29,22 +33,22 @@ const RegisterScreen = () => {
                 password
             });
             
-            Alert.alert('Thành công', 'Đăng ký thành công! Bạn có thể đăng nhập ngay bây giờ.');
+            Alert.alert(t('success'), t('Đăng ký thành công! Bạn có thể đăng nhập ngay bây giờ.'));
             navigation.navigate('Login');
         } catch (error) {
             console.error('Registration error:', error);
-            let errorMessage = 'Có lỗi xảy ra. Vui lòng thử lại.';
+            let errorMessage = t('unexpected_error');
             
             if (error.response) {
                 // Server trả về lỗi
                 errorMessage = error.response.data.message || errorMessage;
             } else if (error.request) {
                 // Không nhận được phản hồi từ server
-                errorMessage = 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.';
+                errorMessage = t('network_error');
             }
             
             Alert.alert(
-                'Đăng ký thất bại',
+                t('Đăng ký thất bại'),
                 errorMessage
             );
         }
@@ -57,13 +61,13 @@ const RegisterScreen = () => {
         >
             <View style={styles.overlay}>
                 <View style={styles.formContainer}>
-                    <Text style={styles.title}>Create Account</Text>
+                    <Text style={styles.title}>{t('create_account')}</Text>
 
                     <View style={styles.inputContainer}>
                         <Icon name="user" size={20} color="#fff" style={styles.inputIcon} />
                         <TextInput
                             style={styles.input}
-                            placeholder="Username"
+                            placeholder={t('username')}
                             placeholderTextColor="#fff"
                             value={username}
                             onChangeText={setUsername}
@@ -75,7 +79,7 @@ const RegisterScreen = () => {
                         <Icon name="envelope" size={20} color="#fff" style={styles.inputIcon} />
                         <TextInput
                             style={styles.input}
-                            placeholder="Email"
+                            placeholder={t('email')}
                             placeholderTextColor="#fff"
                             value={email}
                             onChangeText={setEmail}
@@ -88,41 +92,53 @@ const RegisterScreen = () => {
                         <Icon name="lock" size={20} color="#fff" style={styles.inputIcon} />
                         <TextInput
                             style={styles.input}
-                            placeholder="Password"
+                            placeholder={t('password')}
                             placeholderTextColor="#fff"
                             value={password}
                             onChangeText={setPassword}
-                            secureTextEntry
+                            secureTextEntry={!showPassword}
                             autoCapitalize="none"
                         />
+                        <TouchableOpacity 
+                            onPress={() => setShowPassword(!showPassword)}
+                            style={styles.eyeIcon}
+                        >
+                            <Icon name={showPassword ? "eye" : "eye-slash"} size={20} color="#fff" />
+                        </TouchableOpacity>
                     </View>
 
                     <View style={styles.inputContainer}>
                         <Icon name="lock" size={20} color="#fff" style={styles.inputIcon} />
                         <TextInput
                             style={styles.input}
-                            placeholder="Confirm Password"
+                            placeholder={t('confirm_password')}
                             placeholderTextColor="#fff"
                             value={confirmPassword}
                             onChangeText={setConfirmPassword}
-                            secureTextEntry
+                            secureTextEntry={!showConfirmPassword}
                             autoCapitalize="none"
                         />
+                        <TouchableOpacity 
+                            onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                            style={styles.eyeIcon}
+                        >
+                            <Icon name={showConfirmPassword ? "eye" : "eye-slash"} size={20} color="#fff" />
+                        </TouchableOpacity>
                     </View>
 
                     <TouchableOpacity 
                         style={styles.registerButton} 
                         onPress={handleRegister}
                     >
-                        <Text style={styles.registerButtonText}>Register</Text>
+                        <Text style={styles.registerButtonText}>{t('register_now')}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity 
                         style={styles.loginContainer}
                         onPress={() => navigation.navigate('Login')}
                     >
-                        <Text style={styles.loginText}>Already have an account? </Text>
-                        <Text style={styles.loginLink}>Login now</Text>
+                        <Text style={styles.loginText}>{t('already_have_account')} </Text>
+                        <Text style={styles.loginLink}>{t('login_now')}</Text>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -195,6 +211,9 @@ const styles = StyleSheet.create({
         color: '#ff4081',
         fontSize: 14,
         fontWeight: 'bold',
+    },
+    eyeIcon: {
+        padding: 10,
     },
 });
 

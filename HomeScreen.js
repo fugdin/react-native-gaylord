@@ -13,26 +13,39 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/FontAwesome';
+import { useTranslation } from 'react-i18next';
 
-const gradeData = [
-    { id: 1, grade: 1, label: 'TOÁN 1', image: 'https://img.freepik.com/free-vector/math-class-illustration_23-2148898572.jpg', category: 'Tiểu học' },
-    { id: 2, grade: 2, label: 'TOÁN 2', image: 'https://img.freepik.com/free-vector/hand-drawn-mathematics-background_23-2148156326.jpg', category: 'Tiểu học' },
-    { id: 3, grade: 3, label: 'TOÁN 3', image: 'https://img.freepik.com/free-vector/kids-learning-math_23-2148893402.jpg', category: 'Tiểu học' },
-    { id: 4, grade: 4, label: 'TOÁN 4', image: 'https://img.freepik.com/free-vector/flat-mathematics-background_23-2148156327.jpg', category: 'Tiểu học' },
-    { id: 5, grade: 5, label: 'TOÁN 5', image: 'https://img.freepik.com/free-photo/schoolboy-solving-math-problem_23-2148893401.jpg', category: 'Tiểu học' },
-    { id: 6, grade: 6, label: 'TOÁN 6', image: 'https://img.freepik.com/free-vector/abstract-mathematics-background_23-2148156328.jpg', category: 'THCS' },
-    { id: 7, grade: 7, label: 'TOÁN 7', image: 'https://img.freepik.com/free-vector/brainstorming-concept-illustration_114360-734.jpg', category: 'THCS' },
-    { id: 8, grade: 8, label: 'TOÁN 8', image: 'https://img.freepik.com/free-vector/hand-drawn-mathematics-background_23-2148156329.jpg', category: 'THCS' },
-    { id: 9, grade: 9, label: 'TOÁN 9', image: 'https://img.freepik.com/free-vector/hand-drawn-mathematics-background_23-2148156330.jpg', category: 'THCS' },
-    { id: 10, grade: 10, label: 'TOÁN 10', image: 'https://img.freepik.com/free-vector/hand-drawn-mathematics-background_23-2148156331.jpg', category: 'THPT' },
-    { id: 11, grade: 11, label: 'TOÁN 11', image: 'https://img.freepik.com/free-vector/hand-drawn-mathematics-background_23-2148156332.jpg', category: 'THPT' },
-    { id: 12, grade: 12, label: 'TOÁN 12', image: 'https://img.freepik.com/free-vector/hand-drawn-mathematics-background_23-2148156333.jpg', category: 'THPT' },
-];
+// Color theme
+const COLORS = {
+    primaryLight: '#f8f9fa', // Light background color (matching App.js)
+    primary: '#86bc4b',      // Medium green for elements (matching App.js)
+    primaryDark: '#4a8522',  // Darker green for active elements
+    textDark: '#2a4d16',     // Very dark green for text
+    accent: '#ffffff',       // White for contrast
+    example: '#dcf2d7'       // Light mint green for example boxes
+};
 
 const HomeScreen = ({ navigation, setUser }) => {
+    const { t } = useTranslation();
     const [formulas, setFormulas] = useState([]);
     const [localUser, setLocalUser] = useState(null);
     const [categories, setCategories] = useState({});
+
+    // Define gradeData using translations
+    const gradeData = [
+        { id: 1, grade: 1, label: t('math_grade', { grade: 1 }), image: 'https://img.freepik.com/free-vector/math-class-illustration_23-2148898572.jpg', category: t('elementary') },
+        { id: 2, grade: 2, label: t('math_grade', { grade: 2 }), image: 'https://img.freepik.com/free-vector/hand-drawn-mathematics-background_23-2148156326.jpg', category: t('elementary') },
+        { id: 3, grade: 3, label: t('math_grade', { grade: 3 }), image: 'https://img.freepik.com/free-vector/kids-learning-math_23-2148893402.jpg', category: t('elementary') },
+        { id: 4, grade: 4, label: t('math_grade', { grade: 4 }), image: 'https://img.freepik.com/free-vector/flat-mathematics-background_23-2148156327.jpg', category: t('elementary') },
+        { id: 5, grade: 5, label: t('math_grade', { grade: 5 }), image: 'https://img.freepik.com/free-photo/schoolboy-solving-math-problem_23-2148893401.jpg', category: t('elementary') },
+        { id: 6, grade: 6, label: t('math_grade', { grade: 6 }), image: 'https://img.freepik.com/free-vector/abstract-mathematics-background_23-2148156328.jpg', category: t('middle_school') },
+        { id: 7, grade: 7, label: t('math_grade', { grade: 7 }), image: 'https://img.freepik.com/free-vector/brainstorming-concept-illustration_114360-734.jpg', category: t('middle_school') },
+        { id: 8, grade: 8, label: t('math_grade', { grade: 8 }), image: 'https://img.freepik.com/free-vector/hand-drawn-mathematics-background_23-2148156329.jpg', category: t('middle_school') },
+        { id: 9, grade: 9, label: t('math_grade', { grade: 9 }), image: 'https://img.freepik.com/free-vector/hand-drawn-mathematics-background_23-2148156330.jpg', category: t('middle_school') },
+        { id: 10, grade: 10, label: t('math_grade', { grade: 10 }), image: 'https://img.freepik.com/free-vector/hand-drawn-mathematics-background_23-2148156331.jpg', category: t('high_school') },
+        { id: 11, grade: 11, label: t('math_grade', { grade: 11 }), image: 'https://img.freepik.com/free-vector/hand-drawn-mathematics-background_23-2148156332.jpg', category: t('high_school') },
+        { id: 12, grade: 12, label: t('math_grade', { grade: 12 }), image: 'https://img.freepik.com/free-vector/hand-drawn-mathematics-background_23-2148156333.jpg', category: t('high_school') },
+    ];
 
     useEffect(() => {
         // Group grades by category
@@ -60,23 +73,12 @@ const HomeScreen = ({ navigation, setUser }) => {
                 setFormulas(data);
             } catch (error) {
                 console.error('Error fetching formulas:', error);
-                Alert.alert('Lỗi', 'Không thể tải danh sách công thức.');
+                Alert.alert(t('error'), t('Không thể tải danh sách công thức.'));
             }
         };
 
         fetchData();
-    }, []);
-
-    const handleLogout = async () => {
-        try {
-            await AsyncStorage.removeItem('token');
-            await AsyncStorage.removeItem('user');
-            setUser(null);
-            Alert.alert('Đăng xuất', 'Bạn đã đăng xuất.');
-        } catch (error) {
-            console.error('Logout error:', error);
-        }
-    };
+    }, [t]);
 
     const renderGradeItem = ({ item }) => (
         <TouchableOpacity 
@@ -87,8 +89,8 @@ const HomeScreen = ({ navigation, setUser }) => {
             <View style={styles.gradeContent}>
                 <Text style={styles.gradeLabel}>{item.label}</Text>
                 <View style={styles.viewDetailsContainer}>
-                    <Text style={styles.viewDetails}>Xem chi tiết</Text>
-                    <Icon name="chevron-right" size={12} color="#008080" />
+                    <Text style={styles.viewDetails}>{t('view_details')}</Text>
+                    <Icon name="chevron-right" size={12} color={COLORS.primaryDark} />
                 </View>
             </View>
         </TouchableOpacity>
@@ -112,33 +114,28 @@ const HomeScreen = ({ navigation, setUser }) => {
 
     return (
         <SafeAreaView style={styles.container}>
-            <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+            <StatusBar barStyle="dark-content" backgroundColor={COLORS.primaryLight} />
             
-            <View style={styles.header}>
-                <View style={styles.headerContent}>
-                    <Text style={styles.headerTitle}>Math Formula</Text>
-                    <Text style={styles.headerSubtitle}>Tìm kiếm công thức toán học</Text>
+            <View style={styles.combinedHeader}>
+                <View style={styles.headerTop}>
+                    <View style={styles.headerContent}>
+                        <Text style={styles.headerTitle}>{t('app_name')}</Text>
+                        
+                    </View>
+                    
+                    
                 </View>
                 
-                <TouchableOpacity 
-                    style={styles.searchButton}
-                    onPress={() => navigation.navigate('Search')}
-                >
-                    <Icon name="search" size={22} color="#fff" />
-                </TouchableOpacity>
-            </View>
-            
-            <View style={styles.welcomeSection}>
                 {localUser && (
                     <View style={styles.welcomeHeader}>
                         <Text style={styles.welcomeText}>
-                            Xin chào, <Text style={styles.usernameText}>{localUser.username}</Text>
+                            {t('hello')}, <Text style={styles.usernameText}>{localUser.username}</Text>
                         </Text>
                         <TouchableOpacity
                             style={styles.profileButton}
                             onPress={() => navigation.navigate('Profile')}
                         >
-                            <Icon name="user-circle" size={24} color="#ff4081" />
+                            <Icon name="user-circle" size={24} color={COLORS.primary} />
                         </TouchableOpacity>
                     </View>
                 )}
@@ -146,8 +143,8 @@ const HomeScreen = ({ navigation, setUser }) => {
                     style={styles.quickSearchButton}
                     onPress={() => navigation.navigate('Search')}
                 >
-                    <Icon name="search" size={18} color="#ff4081" style={styles.quickSearchIcon} />
-                    <Text style={styles.quickSearchText}>Tìm kiếm công thức</Text>
+                    <Icon name="search" size={18} color={COLORS.primary} style={styles.quickSearchIcon} />
+                    <Text style={styles.quickSearchText}>{t('search_formula')}</Text>
                 </TouchableOpacity>
             </View>
             
@@ -157,28 +154,6 @@ const HomeScreen = ({ navigation, setUser }) => {
                 renderItem={renderCategorySection}
                 contentContainerStyle={styles.categoriesContainer}
                 showsVerticalScrollIndicator={false}
-                ListFooterComponent={
-                    localUser && (
-                        <View style={styles.profileSection}>
-                            <View style={styles.profileHeader}>
-                                <Text style={styles.profileTitle}>Thông tin tài khoản</Text>
-                                <View style={styles.profileRole}>
-                                    <Icon name={localUser.role === 'admin' ? 'shield' : 'user'} size={14} color="#ff4081" />
-                                    <Text style={styles.roleText}>
-                                        {localUser.role === 'admin' ? 'Quản trị viên' : 'Người dùng'}
-                                    </Text>
-                                </View>
-                            </View>
-                            <TouchableOpacity 
-                                style={styles.logoutButton} 
-                                onPress={handleLogout}
-                            >
-                                <Icon name="sign-out" size={18} color="#fff" style={styles.logoutIcon} />
-                                <Text style={styles.logoutText}>Đăng xuất</Text>
-                            </TouchableOpacity>
-                        </View>
-                    )
-                }
             />
         </SafeAreaView>
     );
@@ -189,17 +164,24 @@ export default HomeScreen;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#fff',
+        backgroundColor: COLORS.primaryLight,
     },
-    header: {
+    combinedHeader: {
+        backgroundColor: '#fff',
+        borderRadius: 12,
+        margin: 16,
+        padding: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 3.84,
+        elevation: 2,
+    },
+    headerTop: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 20,
-        paddingTop: 16,
-        paddingBottom: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: '#f0f0f0',
+        marginBottom: 16,
     },
     headerContent: {
         flex: 1,
@@ -207,15 +189,15 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: 24,
         fontWeight: 'bold',
-        color: '#333',
+        color: COLORS.textDark,
     },
     headerSubtitle: {
         fontSize: 14,
-        color: '#666',
+        color: COLORS.primaryDark,
         marginTop: 2,
     },
     searchButton: {
-        backgroundColor: '#ff4081',
+        backgroundColor: COLORS.primary,
         width: 44,
         height: 44,
         borderRadius: 22,
@@ -227,12 +209,6 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.2,
         shadowRadius: 3,
     },
-    welcomeSection: {
-        padding: 20,
-        backgroundColor: '#f8f9fa',
-        borderBottomWidth: 1,
-        borderBottomColor: '#eee',
-    },
     welcomeHeader: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -241,11 +217,11 @@ const styles = StyleSheet.create({
     },
     welcomeText: {
         fontSize: 16,
-        color: '#444',
+        color: COLORS.textDark,
     },
     usernameText: {
         fontWeight: 'bold',
-        color: '#333',
+        color: COLORS.primaryDark,
     },
     quickSearchButton: {
         flexDirection: 'row',
@@ -263,12 +239,12 @@ const styles = StyleSheet.create({
         marginRight: 10,
     },
     quickSearchText: {
-        color: '#ff4081',
+        color: COLORS.primary,
         fontWeight: '500',
         fontSize: 15,
     },
     categoriesContainer: {
-        paddingBottom: 24,
+        paddingBottom: 100, // Add extra padding to account for the tab bar
     },
     categorySection: {
         marginTop: 20,
@@ -277,7 +253,7 @@ const styles = StyleSheet.create({
     categoryTitle: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: '#333',
+        color: COLORS.textDark,
         marginBottom: 12,
         paddingHorizontal: 4,
     },
@@ -307,7 +283,7 @@ const styles = StyleSheet.create({
     gradeLabel: {
         fontWeight: 'bold',
         fontSize: 15,
-        color: '#333',
+        color: COLORS.textDark,
         marginBottom: 4,
     },
     viewDetailsContainer: {
@@ -316,63 +292,9 @@ const styles = StyleSheet.create({
     },
     viewDetails: {
         fontSize: 12,
-        color: '#008080',
+        color: COLORS.primaryDark,
         fontWeight: '500',
         marginRight: 4,
-    },
-    profileSection: {
-        marginTop: 24,
-        marginHorizontal: 16,
-        backgroundColor: '#f8f9fa',
-        borderRadius: 12,
-        padding: 16,
-        marginBottom: 20,
-    },
-    profileHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 12,
-    },
-    profileTitle: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#333',
-    },
-    profileRole: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#fff',
-        paddingVertical: 4,
-        paddingHorizontal: 8,
-        borderRadius: 12,
-        shadowColor: '#000',
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-        shadowOffset: { width: 0, height: 1 },
-        elevation: 1,
-    },
-    roleText: {
-        fontSize: 12,
-        color: '#666',
-        marginLeft: 4,
-    },
-    logoutButton: {
-        flexDirection: 'row',
-        backgroundColor: '#ff4081',
-        borderRadius: 8,
-        paddingVertical: 10,
-        paddingHorizontal: 16,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    logoutIcon: {
-        marginRight: 8,
-    },
-    logoutText: {
-        color: '#fff',
-        fontWeight: 'bold',
-        fontSize: 14,
     },
     profileButton: {
         backgroundColor: '#fff',

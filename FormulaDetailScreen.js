@@ -1,16 +1,153 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { WebView } from 'react-native-webview';
 import Markdown from 'react-native-markdown-display';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTranslation } from 'react-i18next';
+
+// Color theme to match HomeScreen
+const COLORS = {
+    primary: '#86bc4b',      // Medium green for elements
+    primaryDark: '#4a8522',  // Darker green for active elements
+    textDark: '#2a4d16',     // Very dark green for text
+    accent: '#ffffff',       // White for contrast
+    background: '#f8f9fa',   // Light background
+    lightGreen: '#f0f8f0'    // Light green for backgrounds
+};
 
 const FormulaDetailScreen = ({ route, navigation }) => {
+    const { t } = useTranslation();
     const { formula } = route.params;
     const [example, setExample] = useState(null);
     const [showAnswer, setShowAnswer] = useState(false);
     const [loading, setLoading] = useState(false);
     const [latexHeights, setLatexHeights] = useState({});
     const webViewRefs = useRef({});
+    const [isFavorite, setIsFavorite] = useState(false);
+    const [savingFavorite, setSavingFavorite] = useState(false);
+
+    useEffect(() => {
+        // Check if formula is in favorites
+        checkFavoriteStatus();
+    }, []);
+
+    const checkFavoriteStatus = async () => {
+        try {
+            const token = await AsyncStorage.getItem('token');
+            if (!token) return;
+            
+            console.log("Kiểm tra yêu thích với token:", token.substring(0, 10) + "...");
+            
+            const response = await fetch('http://26.74.118.195:5000/users/check-favorite', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    formulaId: formula._id
+                })
+            });
+            
+            // Kiểm tra phản hồi trước khi parse JSON
+            const textResponse = await response.text();
+            console.log("Raw response:", textResponse.substring(0, 100) + "...");
+            
+            if (!response.ok) {
+                console.error('Error response:', textResponse);
+                return;
+            }
+            
+            try {
+                const data = JSON.parse(textResponse);
+                setIsFavorite(data.isFavorite);
+            } catch (parseError) {
+                console.error('JSON parse error:', parseError);
+                console.error('Response was not valid JSON:', textResponse.substring(0, 200));
+            }
+        } catch (error) {
+            console.error('Error checking favorite status:', error);
+        }
+    };
+
+    const toggleFavorite = async () => {
+        try {
+            setSavingFavorite(true);
+            const token = await AsyncStorage.getItem('token');
+            
+            if (!token) {
+                Alert.alert('Lỗi', 'Bạn cần đăng nhập để sử dụng tính năng này');
+                setSavingFavorite(false);
+                return;
+            }
+            
+            console.log("Toggle favorite with formulaId:", formula._id);
+            
+            const endpoint = isFavorite ? 
+                'http://26.74.118.195:5000/users/remove-favorite' : 
+                'http://26.74.118.195:5000/users/add-favorite';
+            
+            console.log("Calling endpoint:", endpoint);
+            console.log("With token:", token.substring(0, 10) + "...");
+            
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    formulaId: formula._id
+                })
+            });
+            
+            // Kiểm tra phản hồi trước khi parse JSON
+            const textResponse = await response.text();
+            console.log("Raw response:", textResponse.substring(0, 100) + "...");
+            
+            if (!response.ok) {
+                console.error('Error response:', textResponse);
+                Alert.alert('Lỗi', 'Không thể cập nhật trạng thái yêu thích');
+                setSavingFavorite(false);
+                return;
+            }
+            
+            let data;
+            try {
+                data = JSON.parse(textResponse);
+            } catch (parseError) {
+                console.error('JSON parse error:', parseError);
+                console.error('Response was not valid JSON:', textResponse.substring(0, 200));
+                Alert.alert('Lỗi', 'Phản hồi từ server không hợp lệ');
+                setSavingFavorite(false);
+                return;
+            }
+            
+            // Update local user data to reflect changes in favorite count
+            const userData = await AsyncStorage.getItem('user');
+            if (userData) {
+                const user = JSON.parse(userData);
+                const favoriteCount = isFavorite ? (user.favoriteFormulas - 1) : (user.favoriteFormulas + 1);
+                const updatedUser = { ...user, favoriteFormulas: Math.max(0, favoriteCount) };
+                await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+            }
+            
+            // Toggle the favorite state
+            setIsFavorite(!isFavorite);
+            
+            // Show success message
+            Alert.alert(
+                isFavorite ? 'Đã xóa' : 'Đã lưu', 
+                isFavorite ? 'Đã xóa khỏi danh sách yêu thích' : 'Đã thêm vào danh sách yêu thích'
+            );
+        } catch (error) {
+            console.error('Error toggling favorite:', error);
+            Alert.alert('Lỗi', 'Không thể cập nhật trạng thái yêu thích. Vui lòng thử lại sau.');
+        } finally {
+            setSavingFavorite(false);
+        }
+    };
 
     const getLatexHtml = (latexFormula) => {
         return `
@@ -196,6 +333,25 @@ const FormulaDetailScreen = ({ route, navigation }) => {
         );
     };
 
+    // Format answer text to be more readable with line breaks
+    const formatAnswerText = (text) => {
+        if (!text) return '';
+        
+        // First replace literal "\n" with actual newlines
+        let formatted = text.replace(/\\n/g, '\n')
+        
+        // Then continue with existing formatting...
+        .replace(/([.!?])\s+/g, '$1\n\n')
+        // Add line breaks after numbered steps (like "1.", "2.", etc.)
+        .replace(/(\d+\.\s*[^.!?]*[.!?])/g, '$1\n\n')
+        // Add line breaks after bullet points
+        .replace(/(-\s+[^.!?]*[.!?])/g, '$1\n\n')
+        // Fix any excessive line breaks
+        .replace(/\n{3,}/g, '\n\n');
+        
+        return formatted;
+    };
+
     const generateExample = async () => {
         setLoading(true);
         setExample(null);
@@ -212,16 +368,9 @@ const FormulaDetailScreen = ({ route, navigation }) => {
               "answer": "Đáp án và cách giải..."
             }
             
-            QUAN TRỌNG: Trong phần "answer", hãy sử dụng Markdown để định dạng và bọc các công thức toán học trong $$ ... $$ để hiển thị LaTeX. 
-            
-            Ví dụ về cú pháp LaTeX (chú ý dùng \\\\, nghĩa là gấp đôi dấu gạch chéo):
-            - Phân số: $$\\\\frac{a}{b}$$
-            - Căn bậc hai: $$\\\\sqrt{a}$$
-            - Lũy thừa: $$a^b$$
-            - Mũ chỉ số: $$a_n$$
-            - Tổng: $$\\\\sum_{i=1}^{n} a_i$$
-            - Tích: $$\\\\prod_{i=1}^{n} a_i$$
-            - Tích phân: $$\\\\int_{a}^{b} f(x) dx$$
+            QUAN TRỌNG: Trong phần "answer", hãy sử dụng văn bản thông thường để trình bày đáp án và cách giải. 
+            KHÔNG sử dụng LaTeX hay Markdown đặc biệt. Hãy viết tất cả các công thức, phép tính dưới dạng văn bản đơn giản 
+            (ví dụ: "Phân số 1/2", "Căn bậc hai của 4", "x mũ 2", "a cộng b", v.v.) để người đọc dễ hiểu.
             
             Trả lời CHÍNH XÁC theo cấu trúc JSON trên, không thêm văn bản nào khác.`;
             
@@ -262,7 +411,7 @@ const FormulaDetailScreen = ({ route, navigation }) => {
                     }
                     
                     // Try to extract JSON from markdown code blocks or text
-                    let jsonMatch = responseText.match(/```(?:json)?\s*(\{.+\})\s*```/s) || 
+                    let jsonMatch = responseText.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/s) || 
                                     responseText.match(/\{[\s\S]*"example"[\s\S]*"answer"[\s\S]*\}/);
                     
                     if (jsonMatch) {
@@ -271,10 +420,45 @@ const FormulaDetailScreen = ({ route, navigation }) => {
                         const cleanJsonStr = jsonContent
                             .replace(/(\r\n|\n|\r)/gm, " ") // Remove line breaks
                             .replace(/'/g, '"') // Replace single quotes with double quotes
-                            .replace(/,\s*}/g, '}'); // Remove trailing commas
+                            .replace(/,\s*}/g, '}') // Remove trailing commas
+                            .replace(/\\/g, '\\\\') // Escape backslashes
+                            .replace(/\*/g, '\\*') // Escape asterisks
+                            .replace(/\^/g, '\\^') // Escape carets
+                            .replace(/\{/g, '\\{') // Escape curly braces
+                            .replace(/\}/g, '\\}') // Escape curly braces
+                            .replace(/\_/g, '\\_'); // Escape underscores
                             
-                        const parsedExample = JSON.parse(cleanJsonStr);
-                        setExample(parsedExample);
+                        try {
+                            const parsedExample = JSON.parse(cleanJsonStr);
+                            // Unescape the content after parsing
+                            parsedExample.example = parsedExample.example
+                                .replace(/\\\*/g, '*')
+                                .replace(/\\\^/g, '^')
+                                .replace(/\\\{/g, '{')
+                                .replace(/\\\}/g, '}')
+                                .replace(/\\\_/g, '_');
+                            parsedExample.answer = parsedExample.answer
+                                .replace(/\\\*/g, '*')
+                                .replace(/\\\^/g, '^')
+                                .replace(/\\\{/g, '{')
+                                .replace(/\\\}/g, '}')
+                                .replace(/\\\_/g, '_');
+                            setExample(parsedExample);
+                        } catch (parseError) {
+                            console.error('Error parsing extracted JSON:', parseError);
+                            // Fallback to manual extraction
+                            const exampleMatch = responseText.match(/example["\s:]+([^"]+)/i) || 
+                                               responseText.match(/example["\s:]+(.+?)(?:answer|$)/is);
+                            const answerMatch = responseText.match(/answer["\s:]+([^"]+)/i) || 
+                                              responseText.match(/answer["\s:]+(.+?)(?:$)/is);
+                            
+                            if (exampleMatch && answerMatch) {
+                                setExample({
+                                    example: exampleMatch[1].trim(),
+                                    answer: answerMatch[1].trim()
+                                });
+                            }
+                        }
                     } else {
                         // Manual extraction as fallback
                         const exampleMatch = responseText.match(/example["\s:]+([^"]+)/i) || 
@@ -340,9 +524,24 @@ const FormulaDetailScreen = ({ route, navigation }) => {
         <View style={styles.container}>
             <View style={styles.headerRow}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <Icon name="arrow-left" size={22} color="#ff4081" />
+                    <Icon name="arrow-left" size={22} color={COLORS.primary} />
                 </TouchableOpacity>
-                <Text style={styles.header}>Chi tiết công thức</Text>
+                <Text style={styles.header}>{t('formula_details')}</Text>
+                <TouchableOpacity 
+                    style={styles.favoriteBtn}
+                    onPress={toggleFavorite}
+                    disabled={savingFavorite}
+                >
+                    {savingFavorite ? (
+                        <ActivityIndicator size="small" color={COLORS.primary} />
+                    ) : (
+                        <Icon 
+                            name={isFavorite ? "heart" : "heart-o"} 
+                            size={22} 
+                            color={isFavorite ? "#ff4081" : COLORS.primary} 
+                        />
+                    )}
+                </TouchableOpacity>
             </View>
             
             <ScrollView style={styles.contentScroll}>
@@ -350,12 +549,12 @@ const FormulaDetailScreen = ({ route, navigation }) => {
                     <Text style={styles.title}>{formula.title}</Text>
                     
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Mô tả</Text>
+                        <Text style={styles.sectionTitle}>{t('description')}</Text>
                         <Text style={styles.description}>{formula.description}</Text>
                     </View>
                     
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Công thức</Text>
+                        <Text style={styles.sectionTitle}>{t('formula')}</Text>
                         <View style={styles.formulaContainer}>
                             <WebView
                                 originWhitelist={['*']}
@@ -373,20 +572,20 @@ const FormulaDetailScreen = ({ route, navigation }) => {
                         disabled={loading}
                     >
                         <Text style={styles.generateButtonText}>
-                            {example ? "Tạo ví dụ mới" : "Tạo ví dụ ngẫu nhiên"}
+                            {example ? t('generate_new_example') : t('generate_random_example')}
                         </Text>
                     </TouchableOpacity>
                     
                     {loading && (
                         <View style={styles.loadingContainer}>
-                            <ActivityIndicator size="large" color="#ff4081" />
-                            <Text style={styles.loadingText}>Đang tạo ví dụ...</Text>
+                            <ActivityIndicator size="large" color={COLORS.primary} />
+                            <Text style={styles.loadingText}>{t('generating_example')}</Text>
                         </View>
                     )}
                     
                     {example && !loading && (
                         <View style={styles.exampleSection}>
-                            <Text style={styles.exampleTitle}>Ví dụ</Text>
+                            <Text style={styles.exampleTitle}>{t('example')}</Text>
                             <Text style={styles.exampleText}>{example.example}</Text>
                             
                             <TouchableOpacity 
@@ -394,20 +593,22 @@ const FormulaDetailScreen = ({ route, navigation }) => {
                                 onPress={() => setShowAnswer(!showAnswer)}
                             >
                                 <Text style={styles.answerToggleText}>
-                                    {showAnswer ? "Ẩn đáp án" : "Hiện đáp án"}
+                                    {showAnswer ? t('hide_answer') : t('show_answer')}
                                 </Text>
                                 <Icon 
                                     name={showAnswer ? "eye-slash" : "eye"} 
                                     size={18} 
-                                    color="#ff4081" 
+                                    color={COLORS.primary} 
                                     style={styles.answerIcon}
                                 />
                             </TouchableOpacity>
                             
                             {showAnswer && (
                                 <View style={styles.answerContainer}>
-                                    <Text style={styles.answerTitle}>Đáp án</Text>
-                                    {renderMarkdownWithLatex(example.answer)}
+                                    <Text style={styles.answerTitle}>{t('answer')}</Text>
+                                    <Text style={styles.answerText}>
+                                        {formatAnswerText(example.answer)}
+                                    </Text>
                                 </View>
                             )}
                         </View>
@@ -477,7 +678,7 @@ const markdownStyles = {
         fontStyle: 'italic',
     },
     link: {
-        color: '#ff4081',
+        color: COLORS.primary,
         textDecorationLine: 'underline',
     },
     image: {
@@ -510,7 +711,7 @@ const markdownStyles = {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#fff',
+        backgroundColor: COLORS.background,
     },
     headerRow: {
         flexDirection: 'row',
@@ -526,7 +727,12 @@ const styles = StyleSheet.create({
     header: {
         fontSize: 22,
         fontWeight: 'bold',
-        color: '#ff4081',
+        color: COLORS.textDark,
+        flex: 1,
+    },
+    favoriteBtn: {
+        padding: 8,
+        borderRadius: 20,
     },
     contentScroll: {
         flex: 1,
@@ -537,24 +743,24 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 20,
         fontWeight: 'bold',
-        color: '#333',
+        color: COLORS.textDark,
         marginBottom: 16,
     },
     section: {
         marginBottom: 24,
-        backgroundColor: '#f5f5f5',
+        backgroundColor: '#fff',
         borderRadius: 10,
         padding: 16,
     },
     sectionTitle: {
         fontSize: 16,
         fontWeight: 'bold',
-        color: '#666',
+        color: COLORS.primaryDark,
         marginBottom: 8,
     },
     description: {
         fontSize: 15,
-        color: '#444',
+        color: COLORS.textDark,
         lineHeight: 22,
     },
     formulaContainer: {
@@ -581,7 +787,7 @@ const styles = StyleSheet.create({
         backgroundColor: 'white',
     },
     generateButton: {
-        backgroundColor: '#ff4081',
+        backgroundColor: COLORS.primary,
         borderRadius: 8,
         padding: 12,
         alignItems: 'center',
@@ -602,7 +808,7 @@ const styles = StyleSheet.create({
         fontSize: 14,
     },
     exampleSection: {
-        backgroundColor: '#f0f8ff',
+        backgroundColor: COLORS.lightGreen,
         borderRadius: 10,
         padding: 16,
         marginBottom: 24,
@@ -624,11 +830,11 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         marginTop: 16,
         padding: 10,
-        backgroundColor: '#f8e0f0',
+        backgroundColor: '#f0f8f0',
         borderRadius: 8,
     },
     answerToggleText: {
-        color: '#ff4081',
+        color: COLORS.primary,
         fontWeight: 'bold',
         fontSize: 15,
     },
@@ -641,7 +847,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#fff',
         borderRadius: 8,
         borderLeftWidth: 3,
-        borderLeftColor: '#ff4081',
+        borderLeftColor: COLORS.primary,
     },
     answerTitle: {
         fontSize: 16,

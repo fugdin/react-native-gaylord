@@ -4,11 +4,14 @@ import { useNavigation } from '@react-navigation/native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/FontAwesome';
+import { useTranslation } from 'react-i18next';
 
 const LoginScreen = ({ setUser }) => {
+    const { t } = useTranslation();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [rememberMe, setRememberMe] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
     const navigation = useNavigation();
 
     const handleLogin = async () => {
@@ -25,7 +28,7 @@ const LoginScreen = ({ setUser }) => {
             await AsyncStorage.setItem('token', response.data.token);
             await AsyncStorage.setItem('user', JSON.stringify(response.data.user));
 
-            Alert.alert('Login Successful');
+            Alert.alert(t('login_successful'));
             setUser(response.data.user);
         } catch (error) {
             console.error('Login error details:', {
@@ -36,15 +39,15 @@ const LoginScreen = ({ setUser }) => {
             });
             
             if (error.code === 'ECONNREFUSED') {
-                Alert.alert('Connection Error', 'Cannot connect to server. Please check if the server is running.');
+                Alert.alert(t('connection_error'), t('network_error'));
             } else if (error.response) {
                 // Server trả về lỗi
-                Alert.alert('Login Failed', error.response.data.message || 'Invalid username or password');
+                Alert.alert(t('login_failed'), error.response.data.message || t('invalid_credentials'));
             } else if (error.request) {
                 // Không nhận được phản hồi từ server
-                Alert.alert('Connection Error', 'No response from server. Please check your internet connection.');
+                Alert.alert(t('connection_error'), t('network_error'));
             } else {
-                Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+                Alert.alert(t('error'), t('unexpected_error'));
             }
         }
     };
@@ -56,13 +59,13 @@ const LoginScreen = ({ setUser }) => {
         >
             <View style={styles.overlay}>
                 <View style={styles.formContainer}>
-                    <Text style={styles.title}>Welcome Back</Text>
+                    <Text style={styles.title}>{t('welcome_back')}</Text>
 
                     <View style={styles.inputContainer}>
                         <Icon name="user" size={20} color="#fff" style={styles.inputIcon} />
                         <TextInput
                             style={styles.input}
-                            placeholder="Username"
+                            placeholder={t('username')}
                             placeholderTextColor="#fff"
                             value={username}
                             onChangeText={setUsername}
@@ -74,13 +77,19 @@ const LoginScreen = ({ setUser }) => {
                         <Icon name="lock" size={20} color="#fff" style={styles.inputIcon} />
                         <TextInput
                             style={styles.input}
-                            placeholder="Password"
+                            placeholder={t('password')}
                             placeholderTextColor="#fff"
                             value={password}
                             onChangeText={setPassword}
-                            secureTextEntry
+                            secureTextEntry={!showPassword}
                             autoCapitalize="none"
                         />
+                        <TouchableOpacity 
+                            onPress={() => setShowPassword(!showPassword)}
+                            style={styles.eyeIcon}
+                        >
+                            <Icon name={showPassword ? "eye" : "eye-slash"} size={20} color="#fff" />
+                        </TouchableOpacity>
                     </View>
 
                     <View style={styles.optionsContainer}>
@@ -93,20 +102,20 @@ const LoginScreen = ({ setUser }) => {
                                 size={20} 
                                 color="#fff" 
                             />
-                            <Text style={styles.rememberText}>Remember me</Text>
+                            <Text style={styles.rememberText}>{t('remember_me')}</Text>
                         </TouchableOpacity>
                     </View>
 
                     <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-                        <Text style={styles.loginButtonText}>Login</Text>
+                        <Text style={styles.loginButtonText}>{t('login')}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity 
                         style={styles.registerContainer}
                         onPress={() => navigation.navigate('Register')}
                     >
-                        <Text style={styles.registerText}>Don't have an account? </Text>
-                        <Text style={styles.registerLink}>Register now</Text>
+                        <Text style={styles.registerText}>{t('dont_have_account')} </Text>
+                        <Text style={styles.registerLink}>{t('register_now')}</Text>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -167,14 +176,16 @@ const styles = StyleSheet.create({
         marginLeft: 10,
     },
     loginButton: {
-        backgroundColor: '#ff4081',
+        backgroundColor: '#ffffff',
         padding: 15,
         borderRadius: 5,
         alignItems: 'center',
         marginBottom: 20,
+        borderWidth: 1,
+        borderColor: '#6a3de8',
     },
     loginButtonText: {
-        color: '#fff',
+        color: '#6a3de8',
         fontSize: 16,
         fontWeight: 'bold',
     },
@@ -189,9 +200,12 @@ const styles = StyleSheet.create({
         fontSize: 14,
     },
     registerLink: {
-        color: '#ff4081',
+        color: '#6a3de8',
         fontSize: 14,
         fontWeight: 'bold',
+    },
+    eyeIcon: {
+        padding: 10,
     },
 });
 

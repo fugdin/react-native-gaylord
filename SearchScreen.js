@@ -15,8 +15,19 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTranslation } from 'react-i18next';
+
+// Color theme to match HomeScreen
+const COLORS = {
+    primary: '#86bc4b',      // Medium green (matching HomeScreen)
+    primaryDark: '#4a8522',  // Darker green
+    textDark: '#2a4d16',     // Very dark green for text
+    accent: '#ffffff',       // White for contrast
+    background: '#f8f9fa'    // Light background
+};
 
 const SearchScreen = ({ navigation }) => {
+    const { t } = useTranslation();
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -110,7 +121,7 @@ const SearchScreen = ({ navigation }) => {
                 </Text>
                 <View style={styles.resultMeta}>
                     <View style={styles.gradeBadge}>
-                        <Text style={styles.gradeText}>Lớp {item.grade}</Text>
+                        <Text style={styles.gradeText}>{t('grade', { number: item.grade })}</Text>
                     </View>
                 </View>
             </View>
@@ -141,7 +152,7 @@ const SearchScreen = ({ navigation }) => {
 
     return (
         <SafeAreaView style={styles.container}>
-            <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+            <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
             
             <View style={styles.header}>
                 <TouchableOpacity 
@@ -149,9 +160,9 @@ const SearchScreen = ({ navigation }) => {
                     style={styles.backBtn}
                     activeOpacity={0.7}
                 >
-                    <Icon name="arrow-left" size={22} color="#ff4081" />
+                    <Icon name="arrow-left" size={22} color={COLORS.primary} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Tìm kiếm công thức</Text>
+                <Text style={styles.headerTitle}>{t('search_formula')}</Text>
             </View>
 
             <View style={styles.searchContainer}>
@@ -159,7 +170,7 @@ const SearchScreen = ({ navigation }) => {
                     <Icon name="search" size={20} color="#999" style={styles.searchIcon} />
                     <TextInput
                         style={styles.searchInput}
-                        placeholder="Nhập từ khóa tìm kiếm..."
+                        placeholder={t('search_placeholder')}
                         value={searchQuery}
                         onChangeText={setSearchQuery}
                         returnKeyType="search"
@@ -181,7 +192,7 @@ const SearchScreen = ({ navigation }) => {
                     onPress={handleSearch}
                     activeOpacity={0.8}
                 >
-                    <Text style={styles.searchButtonText}>Tìm</Text>
+                    <Text style={styles.searchButtonText}>{t('search')}</Text>
                 </TouchableOpacity>
             </View>
 
@@ -189,7 +200,7 @@ const SearchScreen = ({ navigation }) => {
                 {isLoading ? (
                     <View style={styles.loadingContainer}>
                         <ActivityIndicator size="large" color="#ff4081" />
-                        <Text style={styles.loadingText}>Đang tìm kiếm...</Text>
+                        <Text style={styles.loadingText}>{t('searching')}</Text>
                     </View>
                 ) : (
                     <View style={styles.resultsContainer}>
@@ -197,7 +208,7 @@ const SearchScreen = ({ navigation }) => {
                             <>
                                 <View style={styles.resultsSummary}>
                                     <Text style={styles.resultCount}>
-                                        Tìm thấy {searchResults.length} kết quả
+                                        {t('search_results', { count: searchResults.length })}
                                     </Text>
                                 </View>
                                 <FlatList
@@ -211,9 +222,9 @@ const SearchScreen = ({ navigation }) => {
                         ) : searchQuery.length > 0 && !isLoading ? (
                             <View style={styles.noResultsContainer}>
                                 <Icon name="search" size={50} color="#e0e0e0" />
-                                <Text style={styles.noResultsText}>Không tìm thấy kết quả</Text>
+                                <Text style={styles.noResultsText}>{t('no_results')}</Text>
                                 <Text style={styles.noResultsSubText}>
-                                    Vui lòng thử với từ khóa khác
+                                    {t('try_different_keyword')}
                                 </Text>
                             </View>
                         ) : (
@@ -221,7 +232,7 @@ const SearchScreen = ({ navigation }) => {
                                 {recentSearches.length > 0 ? (
                                     <>
                                         <View style={styles.recentSearchesHeader}>
-                                            <Text style={styles.recentSearchesTitle}>Tìm kiếm gần đây</Text>
+                                            <Text style={styles.recentSearchesTitle}>{t('recent_searches')}</Text>
                                             <TouchableOpacity 
                                                 onPress={() => {
                                                     setRecentSearches([]);
@@ -229,7 +240,7 @@ const SearchScreen = ({ navigation }) => {
                                                 }}
                                                 style={styles.clearAllButton}
                                             >
-                                                <Text style={styles.clearAllText}>Xóa tất cả</Text>
+                                                <Text style={styles.clearAllText}>{t('clear_all')}</Text>
                                             </TouchableOpacity>
                                         </View>
                                         <FlatList
@@ -243,7 +254,7 @@ const SearchScreen = ({ navigation }) => {
                                     <View style={styles.emptyStateContainer}>
                                         <Icon name="search" size={40} color="#f0f0f0" />
                                         <Text style={styles.emptyStateText}>
-                                            Nhập từ khóa để tìm kiếm công thức toán học
+                                            {t('type_to_search')}
                                         </Text>
                                     </View>
                                 )}
@@ -259,7 +270,7 @@ const SearchScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#fff',
+        backgroundColor: COLORS.background,
     },
     header: {
         flexDirection: 'row',
@@ -276,7 +287,7 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: 20,
         fontWeight: 'bold',
-        color: '#333',
+        color: COLORS.textDark,
     },
     searchContainer: {
         flexDirection: 'row',
@@ -309,7 +320,7 @@ const styles = StyleSheet.create({
         padding: 8,
     },
     searchButton: {
-        backgroundColor: '#ff4081',
+        backgroundColor: COLORS.primary,
         borderRadius: 8,
         paddingHorizontal: 16,
         height: 46,
@@ -400,7 +411,7 @@ const styles = StyleSheet.create({
     },
     gradeText: {
         fontSize: 12,
-        color: '#ff4081',
+        color: COLORS.primary,
         fontWeight: '500',
     },
     noResultsContainer: {
@@ -441,7 +452,7 @@ const styles = StyleSheet.create({
     },
     clearAllText: {
         fontSize: 14,
-        color: '#ff4081',
+        color: COLORS.primary,
     },
     recentSearchesList: {
         paddingBottom: 20,
@@ -455,7 +466,7 @@ const styles = StyleSheet.create({
     },
     recentSearchIcon: {
         marginRight: 12,
-        color: '#ff4081',
+        color: COLORS.primary,
     },
     recentSearchText: {
         flex: 1,

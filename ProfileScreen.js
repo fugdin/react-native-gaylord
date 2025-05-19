@@ -15,13 +15,32 @@ import {
 import Icon from 'react-native-vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
+import { useTranslation } from 'react-i18next';
+import LanguageSelector from './components/LanguageSelector';
 
-const ProfileScreen = ({ navigation }) => {
-  const [user, setUser] = useState(null);
+// Color theme to match HomeScreen
+const COLORS = {
+  primary: '#86bc4b',      // Medium green (matching HomeScreen)
+  primaryDark: '#4a8522',  // Darker green
+  textDark: '#2a4d16',     // Very dark green for text
+  accent: '#ffffff',       // White for contrast
+  background: '#f8f9fa'    // Light background
+};
+
+const ProfileScreen = ({ navigation, setUser }) => {
+  const { t } = useTranslation();
+  const [user, setLocalUser] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editedBio, setEditedBio] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
   
+  // State for password change
+  const [passwordModalVisible, setPasswordModalVisible] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+
   // Default user data
   const defaultAvatar = 'https://ui-avatars.com/api/?name=User&background=random&color=fff&size=200';
   const defaultCover = 'https://images.unsplash.com/photo-1633613286991-611fe299c4be?q=80&w=2070&auto=format&fit=crop';
@@ -37,12 +56,12 @@ const ProfileScreen = ({ navigation }) => {
             ...parsedUser,
             avatar: parsedUser.avatar || defaultAvatar,
             coverPhoto: parsedUser.coverPhoto || defaultCover,
-            bio: parsedUser.bio || 'Chưa có mô tả.', 
+            bio: parsedUser.bio || t('about_placeholder'), 
             joinDate: parsedUser.joinDate || new Date().toISOString().split('T')[0],
             favoriteFormulas: parsedUser.favoriteFormulas || 0,
-            lastActive: 'Hôm nay'
+            lastActive: t('today')
           };
-          setUser(enhancedUser);
+          setLocalUser(enhancedUser);
           setEditedBio(enhancedUser.bio);
         }
       } catch (error) {
@@ -51,17 +70,24 @@ const ProfileScreen = ({ navigation }) => {
     };
 
     fetchUserData();
-  }, []);
+  }, [t]);
 
   const handleLogout = async () => {
     try {
       await AsyncStorage.removeItem('token');
       await AsyncStorage.removeItem('user');
-      Alert.alert('Đăng xuất', 'Bạn đã đăng xuất thành công.');
+      Alert.alert(t('logout'), t('logout_success'));
 
-      // Trigger the app state change
-      // Use navigation.navigate instead of reset to make sure we trigger the App.js setUser check
-      navigation.navigate('Login');
+      // Update app state in App.js
+      if (setUser) {
+        setUser(null);
+      } else {
+        // Fallback if setUser prop is not available
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Login' }],
+        });
+      }
     } catch (error) {
       console.error('Logout error:', error);
     }
@@ -75,12 +101,12 @@ const ProfileScreen = ({ navigation }) => {
     try {
       const updatedUser = { ...user, bio: editedBio };
       await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
-      setUser(updatedUser);
+      setLocalUser(updatedUser);
       setIsEditing(false);
-      Alert.alert('Thành công', 'Đã cập nhật thông tin cá nhân.');
+      Alert.alert(t('success'), t('profile_updated'));
     } catch (error) {
       console.error('Error saving profile:', error);
-      Alert.alert('Lỗi', 'Không thể cập nhật thông tin.');
+      Alert.alert(t('error'), t('profile_updated'));
     }
   };
 
@@ -90,7 +116,7 @@ const ProfileScreen = ({ navigation }) => {
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
       
       if (permissionResult.granted === false) {
-        Alert.alert('Lỗi', 'Cần cấp quyền truy cập thư viện ảnh để thay đổi ảnh.');
+        Alert.alert(t('error'), t('Cần cấp quyền truy cập thư viện ảnh để thay đổi ảnh.'));
         return;
       }
       
@@ -112,25 +138,98 @@ const ProfileScreen = ({ navigation }) => {
         }
         
         await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
-        setUser(updatedUser);
+        setLocalUser(updatedUser);
       }
     } catch (error) {
       console.error('Error changing photo:', error);
-      Alert.alert('Lỗi', 'Không thể thay đổi ảnh.');
+      Alert.alert(t('error'), t('Không thể thay đổi ảnh.'));
     }
+  };
+
+  const handleChangePassword = async () => {
+    // Reset error message
+    setPasswordError('');
+    
+    // Validate passwords
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordError(t('fill_all_fields'));
+      return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+      setPasswordError(t('passwords_not_match'));
+      return;
+    }
+    
+    if (newPassword.length < 6) {
+      setPasswordError(t('password_min_length'));
+      return;
+    }
+    
+    try {
+      // Get token for authentication
+      const token = await AsyncStorage.getItem('token');
+      
+      if (!token) {
+        Alert.alert(t('error'), t('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'));
+        return;
+      }
+      
+      // Call API to change password
+      const response = await fetch('http://26.74.118.195:5000/users/change-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          currentPassword,
+          newPassword
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        setPasswordError(data.message || t('password_error'));
+        return;
+      }
+      
+      // Success
+      Alert.alert(t('success'), t('password_changed'));
+      
+      // Reset form and close modal
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setPasswordModalVisible(false);
+      
+    } catch (error) {
+      console.error('Error changing password:', error);
+      setPasswordError(t('Lỗi kết nối. Vui lòng thử lại sau.'));
+    }
+  };
+
+  const handleViewFavorites = () => {
+    navigation.navigate('FavoriteFormulas');
+  };
+
+  const viewFormulaDetail = (formula) => {
+    setFavoritesModalVisible(false);
+    navigation.navigate('FormulaDetail', { formula });
   };
 
   if (!user) {
     return (
       <View style={styles.loadingContainer}>
-        <Text>Đang tải...</Text>
+        <Text>{t('loading')}</Text>
       </View>
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
       
       {/* Cover Photo */}
       <View style={styles.coverContainer}>
@@ -178,7 +277,7 @@ const ProfileScreen = ({ navigation }) => {
                 color="#fff" 
               />
               <Text style={styles.badgeText}>
-                {user.role === 'admin' ? 'Quản trị viên' : 'Người dùng'}
+                {user.role === 'admin' ? t('admin') : t('user')}
               </Text>
             </View>
           </View>
@@ -186,27 +285,27 @@ const ProfileScreen = ({ navigation }) => {
         </View>
       </View>
       
-      <ScrollView style={styles.content}>
+      <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 160 }}>
         {/* Stats Section */}
         <View style={styles.statsContainer}>
           <View style={styles.statItem}>
             <Text style={styles.statValue}>{user.favoriteFormulas}</Text>
-            <Text style={styles.statLabel}>Công thức đã lưu</Text>
+            <Text style={styles.statLabel}>{t('saved_formulas')}</Text>
           </View>
           <View style={[styles.statItem, styles.statDivider]}>
             <Text style={styles.statValue}>{user.joinDate}</Text>
-            <Text style={styles.statLabel}>Ngày tham gia</Text>
+            <Text style={styles.statLabel}>{t('join_date')}</Text>
           </View>
           <View style={styles.statItem}>
             <Text style={styles.statValue}>{user.lastActive}</Text>
-            <Text style={styles.statLabel}>Hoạt động gần đây</Text>
+            <Text style={styles.statLabel}>{t('recent_activity')}</Text>
           </View>
         </View>
         
         {/* Bio Section */}
         <View style={styles.sectionContainer}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Giới thiệu</Text>
+            <Text style={styles.sectionTitle}>{t('about')}</Text>
             {!isEditing && (
               <TouchableOpacity onPress={handleEditProfile}>
                 <Icon name="pencil" size={16} color="#ff4081" />
@@ -221,7 +320,7 @@ const ProfileScreen = ({ navigation }) => {
                 value={editedBio}
                 onChangeText={setEditedBio}
                 multiline
-                placeholder="Nhập giới thiệu về bạn..."
+                placeholder={t('about_placeholder')}
               />
               <View style={styles.editActions}>
                 <TouchableOpacity 
@@ -231,13 +330,13 @@ const ProfileScreen = ({ navigation }) => {
                     setEditedBio(user.bio);
                   }}
                 >
-                  <Text style={styles.editButtonText}>Hủy</Text>
+                  <Text style={styles.editButtonText}>{t('cancel')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
                   style={[styles.editButton, styles.saveButton]}
                   onPress={handleSaveProfile}
                 >
-                  <Text style={styles.editButtonText}>Lưu</Text>
+                  <Text style={styles.editButtonText}>{t('save')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -248,31 +347,33 @@ const ProfileScreen = ({ navigation }) => {
         
         {/* Settings Section */}
         <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Cài đặt</Text>
+          <Text style={styles.sectionTitle}>{t('settings')}</Text>
           
           <TouchableOpacity style={styles.settingItem}>
             <Icon name="bell" size={18} color="#555" style={styles.settingIcon} />
-            <Text style={styles.settingText}>Thông báo</Text>
+            <Text style={styles.settingText}>{t('notifications')}</Text>
             <Icon name="chevron-right" size={16} color="#ccc" style={styles.settingArrow} />
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity 
+            style={styles.settingItem}
+            onPress={() => setPasswordModalVisible(true)}
+          >
             <Icon name="lock" size={18} color="#555" style={styles.settingIcon} />
-            <Text style={styles.settingText}>Bảo mật</Text>
+            <Text style={styles.settingText}>{t('change_password')}</Text>
             <Icon name="chevron-right" size={16} color="#ccc" style={styles.settingArrow} />
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity 
+            style={styles.settingItem}
+            onPress={handleViewFavorites}
+          >
             <Icon name="heart" size={18} color="#555" style={styles.settingIcon} />
-            <Text style={styles.settingText}>Công thức yêu thích</Text>
+            <Text style={styles.settingText}>{t('favorite_formulas')}</Text>
             <Icon name="chevron-right" size={16} color="#ccc" style={styles.settingArrow} />
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.settingItem}>
-            <Icon name="language" size={18} color="#555" style={styles.settingIcon} />
-            <Text style={styles.settingText}>Ngôn ngữ</Text>
-            <Icon name="chevron-right" size={16} color="#ccc" style={styles.settingArrow} />
-          </TouchableOpacity>
+          <LanguageSelector />
         </View>
         
         {/* Logout Button */}
@@ -281,7 +382,7 @@ const ProfileScreen = ({ navigation }) => {
           onPress={handleLogout}
         >
           <Icon name="sign-out" size={18} color="#fff" style={styles.logoutIcon} />
-          <Text style={styles.logoutText}>Đăng xuất</Text>
+          <Text style={styles.logoutText}>{t('logout')}</Text>
         </TouchableOpacity>
       </ScrollView>
       
@@ -294,14 +395,14 @@ const ProfileScreen = ({ navigation }) => {
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Thay đổi ảnh</Text>
+            <Text style={styles.modalTitle}>{t('change_photo')}</Text>
             
             <TouchableOpacity 
               style={styles.modalOption}
               onPress={() => handleChangePhoto('avatar')}
             >
               <Icon name="user-circle" size={20} color="#ff4081" style={styles.modalIcon} />
-              <Text style={styles.modalOptionText}>Thay đổi ảnh đại diện</Text>
+              <Text style={styles.modalOptionText}>{t('change_avatar')}</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
@@ -309,15 +410,86 @@ const ProfileScreen = ({ navigation }) => {
               onPress={() => handleChangePhoto('cover')}
             >
               <Icon name="image" size={20} color="#ff4081" style={styles.modalIcon} />
-              <Text style={styles.modalOptionText}>Thay đổi ảnh bìa</Text>
+              <Text style={styles.modalOptionText}>{t('change_cover')}</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
               style={styles.closeModalButton}
               onPress={() => setModalVisible(false)}
             >
-              <Text style={styles.closeModalText}>Hủy</Text>
+              <Text style={styles.closeModalText}>{t('cancel')}</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Password Change Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={passwordModalVisible}
+        onRequestClose={() => setPasswordModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>{t('change_password')}</Text>
+            
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>{t('current_password')}</Text>
+              <TextInput 
+                style={styles.textInput}
+                value={currentPassword}
+                onChangeText={setCurrentPassword}
+                secureTextEntry={true}
+                placeholder={t('current_password')}
+              />
+            </View>
+            
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>{t('new_password')}</Text>
+              <TextInput 
+                style={styles.textInput}
+                value={newPassword}
+                onChangeText={setNewPassword}
+                secureTextEntry={true}
+                placeholder={t('new_password')}
+              />
+            </View>
+            
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>{t('confirm_new_password')}</Text>
+              <TextInput 
+                style={styles.textInput}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry={true}
+                placeholder={t('confirm_new_password')}
+              />
+            </View>
+            
+            {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => {
+                  setPasswordModalVisible(false);
+                  setCurrentPassword('');
+                  setNewPassword('');
+                  setConfirmPassword('');
+                  setPasswordError('');
+                }}
+              >
+                <Text style={styles.cancelButtonText}>{t('cancel')}</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.confirmButton]}
+                onPress={handleChangePassword}
+              >
+                <Text style={styles.confirmButtonText}>{t('confirm')}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -328,12 +500,13 @@ const ProfileScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: COLORS.background,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
   },
   coverContainer: {
     height: 180,
@@ -409,13 +582,13 @@ const styles = StyleSheet.create({
   username: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#333',
+    color: COLORS.textDark,
     marginRight: 8,
   },
   badgeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ff4081',
+    backgroundColor: COLORS.primary,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
@@ -486,7 +659,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: COLORS.textDark,
   },
   bioText: {
     fontSize: 14,
@@ -521,12 +694,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#f2f2f2',
   },
   saveButton: {
-    backgroundColor: '#ff4081',
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#6a3de8',
   },
   editButtonText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#fff',
+    color: '#6a3de8',
   },
   settingItem: {
     flexDirection: 'row',
@@ -553,7 +728,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#ff4081',
+    backgroundColor: COLORS.primary,
     borderRadius: 12,
     padding: 16,
     marginBottom: 30,
@@ -611,6 +786,52 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     color: '#333',
+  },
+  // Password modal styles
+  inputContainer: {
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 14,
+    color: '#555',
+    marginBottom: 6,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 14,
+  },
+  errorText: {
+    color: 'red',
+    fontSize: 14,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 16,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginHorizontal: 8,
+  },
+  confirmButton: {
+    backgroundColor: COLORS.primary,
+  },
+  confirmButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  cancelButtonText: {
+    color: '#333',
+    fontSize: 16,
   },
 });
 

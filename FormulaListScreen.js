@@ -2,8 +2,19 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, StyleSheet, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { WebView } from 'react-native-webview';
+import { useTranslation } from 'react-i18next';
+
+// Color theme to match HomeScreen
+const COLORS = {
+    primary: '#86bc4b',      // Medium green for elements
+    primaryDark: '#4a8522',  // Darker green for active elements
+    textDark: '#2a4d16',     // Very dark green for text
+    accent: '#ffffff',       // White for contrast
+    background: '#f8f9fa'    // Light background
+};
 
 const FormulaListScreen = ({ route, navigation }) => {
+    const { t } = useTranslation();
     const { grade } = route.params;
     const [formulas, setFormulas] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -15,13 +26,13 @@ const FormulaListScreen = ({ route, navigation }) => {
                 const data = await response.json();
                 setFormulas(data);
             } catch (error) {
-                Alert.alert('Lỗi', 'Không thể tải danh sách công thức.');
+                Alert.alert(t('error'), t('Không thể tải danh sách công thức.'));
             } finally {
                 setLoading(false);
             }
         };
         fetchFormulas();
-    }, [grade]);
+    }, [grade, t]);
 
     const getLatexHtml = (latexFormula) => {
         return `
@@ -73,7 +84,7 @@ const FormulaListScreen = ({ route, navigation }) => {
             onPress={() => goToFormulaDetail(item)}
         >
             <Text style={styles.title}>{item.title}</Text>
-            <Icon name="chevron-right" size={16} color="#aaa" style={styles.arrowIcon} />
+            <Icon name="chevron-right" size={16} color={COLORS.primary} style={styles.arrowIcon} />
         </TouchableOpacity>
     );
 
@@ -81,15 +92,15 @@ const FormulaListScreen = ({ route, navigation }) => {
         <View style={styles.container}>
             <View style={styles.headerRow}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <Icon name="arrow-left" size={22} color="#ff4081" />
+                    <Icon name="arrow-left" size={22} color={COLORS.primary} />
                 </TouchableOpacity>
-                <Text style={styles.header}>Công thức Toán lớp {grade}</Text>
+                <Text style={styles.header}>{t('formula_list', { grade })}</Text>
             </View>
             {loading ? (
-                <ActivityIndicator size="large" color="#ff4081" style={{ marginTop: 40 }} />
+                <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
             ) : (
                 formulas.length === 0 ? (
-                    <Text style={styles.emptyText}>Chưa có công thức nào cho lớp này.</Text>
+                    <Text style={styles.emptyText}>{t('no_formulas')}</Text>
                 ) : (
                     <FlatList
                         data={formulas}
@@ -106,7 +117,7 @@ const FormulaListScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#fff',
+        backgroundColor: COLORS.background,
         padding: 16,
     },
     headerRow: {
@@ -121,7 +132,7 @@ const styles = StyleSheet.create({
     header: {
         fontSize: 22,
         fontWeight: 'bold',
-        color: '#ff4081',
+        color: COLORS.textDark,
     },
     list: {
         paddingBottom: 20,
@@ -133,7 +144,7 @@ const styles = StyleSheet.create({
         marginBottom: 14,
         padding: 14,
         borderRadius: 10,
-        backgroundColor: '#f0f0f0',
+        backgroundColor: '#fff',
         shadowColor: '#000',
         shadowOpacity: 0.06,
         shadowRadius: 4,
@@ -142,11 +153,12 @@ const styles = StyleSheet.create({
     title: {
         fontWeight: 'bold',
         fontSize: 16,
-        color: '#333',
+        color: COLORS.textDark,
         flex: 1,
     },
     arrowIcon: {
         marginLeft: 10,
+        color: COLORS.primary,
     },
     description: {
         marginTop: 4,
@@ -166,7 +178,7 @@ const styles = StyleSheet.create({
     },
     emptyText: {
         textAlign: 'center',
-        color: '#888',
+        color: COLORS.primaryDark,
         marginTop: 40,
         fontSize: 16,
     },
